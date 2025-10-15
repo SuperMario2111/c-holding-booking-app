@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Select Location - Celebratory Events</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="container">
+    <h1>Select a Location</h1>
+    <div class="button-container">
+      <button onclick="selectLocation('New Cairo')">New Cairo</button>
+      <button onclick="selectLocation('Zayed')">Zayed</button>
+    </div>
+  </div>
+
+  <script>
+    function selectLocation(location) {
+      window.location.href = `rooms.html?location=${encodeURIComponent(location)}`;
+    }
+  </script>
+
+</body>
+</html>

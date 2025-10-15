@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dashboard-page" style="font-family: 'Poppins', sans-serif;">
+  <div class="container">
+    <h2>Welcome to C-HOLDING</h2>
+    <div class="button-container">
+      <button onclick="window.location.href='location.html'">Book Your Meeting</button>
+      <button onclick="logout()" style="background: #555; color: white;">Logout</button>
+    </div>
+
+    <div id="my-bookings" style="margin-top: 40px;">
+      <h3 style="color: #FFA500; border-bottom: 1px solid #FFA500; padding-bottom: 10px;">My Bookings</h3>
+      <div id="bookings-list">
+        <!-- Bookings will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function cancelBooking(key, hourLabel) {
+      if (!confirm("Are you sure you want to cancel this booking?")) return;
+
+      const username = localStorage.getItem('currentUser');
+      if (!username) {
+        alert("You must be logged in to cancel a booking.");
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/bookings', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, hourLabel, username })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message);
+        window.location.reload(); // Reload the page to show the updated list
+      } catch (error) {
+        alert(error.message || "Failed to cancel booking.");
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('currentUser');
+      window.location.href = 'login.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const username = localStorage.getItem('currentUser');
+      if (!username) {
+        // If no user is logged in, redirect to login page
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const bookingsList = document.getElementById('bookings-list');
+      bookingsList.innerHTML = '<p>Loading your bookings...</p>';
+
+      try {
+        const response = await fetch(`/api/user-bookings?username=${username}`);
+        if (!response.ok) {
+          throw new Error('Could not fetch bookings.');
+        }
+        const bookings = await response.json();
+
+        if (bookings.length === 0) {
+          bookingsList.innerHTML = '<p>You have no upcoming bookings.</p>';
+          return;
+        }
+
+        // Clear the loading message
+        bookingsList.innerHTML = '';
+
+        // Display each booking
+        bookings.forEach(booking => {
+          const bookingElement = document.createElement('div');
+          bookingElement.className = 'booking-item'; // You can style this class in style.css
+          bookingElement.style.backgroundColor = '#1e1e1e';
+          bookingElement.style.padding = '15px';
+          bookingElement.style.borderRadius = '8px';
+          bookingElement.style.marginBottom = '10px';
+          bookingElement.innerHTML = `
+            <strong>${booking.location} - ${booking.room}</strong><br>
+            Date: ${booking.date} at ${booking.hourLabel}<br>
+            Company: ${booking.details.company} | School: ${booking.details.school}<br>
+            <div style="margin-top: 10px;">
+              <button onclick="cancelBooking('${booking.key}', '${booking.hourLabel}')" style="background: #ff4444; color: white; padding: 5px 10px; font-size: 14px; margin: 0;">Cancel Booking</button>
+            </div>
+          `;
+          bookingsList.appendChild(bookingElement);
+        });
+      } catch (error) {
+        bookingsList.innerHTML = `<p style="color: red;">${error.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>

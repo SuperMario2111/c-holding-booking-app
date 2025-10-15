@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Select Room - Celebratory Events</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="container">
+    <h1 id="roomTitle">Select a Room</h1>
+    <div class="button-container" id="roomButtons"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const params = new URLSearchParams(window.location.search);
+      const location = params.get("location");
+
+      const roomTitle = document.getElementById("roomTitle");
+      const roomButtons = document.getElementById("roomButtons");
+
+      if (!location) {
+        roomTitle.textContent = "Invalid or missing location.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/rooms?location=${encodeURIComponent(location)}`);
+        if (!response.ok) throw new Error('Could not fetch rooms.');
+        const rooms = await response.json();
+        
+        roomTitle.textContent = `Rooms in ${location}`;
+        rooms.forEach(room => {
+          const btn = document.createElement("button");
+          btn.textContent = room;
+          btn.onclick = () => window.location.href = `slots.html?location=${encodeURIComponent(location)}&room=${encodeURIComponent(room)}`;
+          roomButtons.appendChild(btn);
+        });
+      } catch (error) {
+        roomTitle.textContent = error.message;
+      }
+    });
+  </script>
+
+</body>
+</html>

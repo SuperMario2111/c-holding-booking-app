@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Book a Slot - Celebratory Events</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: white;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 30px;
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(255, 165, 0, 0.2);
+    }
+
+    h1 {
+      color: #FFA500;
+      text-align: center;
+    }
+
+    label, input, select {
+      display: block;
+      margin: 10px 0;
+      font-size: 18px;
+      width: 100%;
+    }
+
+    input, select {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #FFA500;
+      background-color: #121212;
+      color: #FFA500;
+      font-size: 16px;
+    }
+
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 15px;
+      margin-top: 25px;
+    }
+
+    .slot {
+      background-color: #1a1a1a;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      border: 2px solid #FFA500;
+      transition: background 0.2s;
+    }
+
+    .slot:hover {
+      background-color: #FFA500;
+      color: black;
+    }
+
+    .slot.booked {
+      background-color: #333;
+      color: #888;
+      cursor: not-allowed;
+      border-color: #666;
+    }
+
+    .slot-details {
+      font-size: 13px;
+      margin-top: 10px;
+      color: #FFA500;
+    }
+
+    .slot button {
+      margin-top: 5px;
+      padding: 5px 8px;
+      border: none;
+      background-color: #ff4444;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Book a Slot</h1>
+
+    <p id="roomInfo"></p>
+
+    <label for="date">Select Date:</label>
+    <input type="text" id="date" placeholder="YYYY-MM-DD" />
+
+    <label for="company">Select Company:</label>
+    <select id="company">
+      <option value="">Select</option>
+      <option value="C Brand">C Brand</option>
+      <option value="Celebratory">Celebratory</option>
+      <option value="C Trips">C Trips</option>
+    </select>
+
+    <label for="school">School Name:</label>
+    <input type="text" id="school" placeholder="e.g. Future Academy" />
+
+    <label for="persons">Number of Persons:</label>
+    <input type="number" id="persons" min="1" placeholder="e.g. 10" />
+
+    <label for="presenter">Presenter Name:</label>
+    <input type="text" id="presenter" />
+
+    <div id="action-buttons" style="margin-top: 20px;">
+      <!-- Buttons will be dynamically added here -->
+    </div>
+    <div class="slot-grid" id="slotsContainer"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/pikaday/pikaday.min.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const locName = params.get("location") || "Unknown";
+    const room = params.get("room") || "Unknown";
+    const username = localStorage.getItem("currentUser") || "";
+    
+    // --- Edit Mode Detection ---
+    const isEditMode = params.get('edit') === 'true';
+    const originalHourLabel = params.get('hourLabel');
+    const originalKey = `${locName}_${room}_${params.get('date')}`;
+    let selectedNewHourLabel = null;
+
+    document.getElementById("roomInfo").textContent = `${locName} — ${room}`;
+    document.getElementById("presenter").value = username;
+
+    const slotsContainer = document.getElementById("slotsContainer");
+    const dateInput = document.getElementById("date");
+
+    const pageEntryTime = new Date(); // 🕒 Store time user entered the page
+    const minSlotTime = new Date(pageEntryTime.getTime() + 20 * 60 * 60 * 1000); // 🕓 20 hours later
+
+    // --- Initial Setup ---
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Fetch room capacity to update the placeholder
+      try {
+        const response = await fetch(`/api/room-capacity?roomName=${encodeURIComponent(room)}`);
+        if (response.ok) {
+          const capacity = await response.json();
+          if (capacity.min && capacity.max) {
+            const personsInput = document.getElementById("persons");
+            personsInput.placeholder = `Range: ${capacity.min}–${capacity.max}`;
+            personsInput.min = capacity.min;
+            personsInput.max = capacity.max;
+          }
+        }
+      } catch (error) {
+        console.error("Could not fetch room capacity:", error);
+      }
+
+      const picker = new Pikaday({
+        field: dateInput,
+        format: 'YYYY-MM-DD',
+        minDate: new Date(), // ⛔ Disable past days
+        onSelect: loadSlotsForDate
+      });
+
+      // If in edit mode, pre-fill form and set date
+      if (isEditMode) {
+        document.getElementById('company').value = params.get('company') || '';
+        document.getElementById('school').value = params.get('school') || '';
+        document.getElementById('persons').value = params.get('persons') || '';
+        picker.setDate(params.get('date'), true); // Set date and trigger onSelect
+        
+        // Add an "Update" button
+        const updateButton = document.createElement('button');
+        updateButton.textContent = 'Update Booking';
+        updateButton.onclick = () => updateBooking();
+        document.getElementById('action-buttons').appendChild(updateButton);
+      }
+
+    });
+
+    // Helper to format hours like "7:00 AM"
+    function formatAMPM(hour) {
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const formatted = hour % 12 || 12;
+      return `${formatted}:00 ${ampm}`;
+    }
+
+    // Define a standard set of operating hours (9 AM to 10 PM)
+    const operatingHours = { start: 9, end: 22 };
+
+    async function loadSlotsForDate() {
+      const selectedDate = dateInput.value;
+      if (!selectedDate) return;
+
+      slotsContainer.innerHTML = "";
+
+      const [year, month, day] = selectedDate.split("-");
+      const hours = [];
+      for (let i = operatingHours.start; i <= operatingHours.end; i++) {
+        hours.push(i);
+      }
+
+      const key = `${locName}_${room}_${selectedDate}`;
+      let roomBookings = {};
+      try {
+        const response = await fetch(`/api/bookings?key=${key}`);
+        if (response.ok) roomBookings = await response.json();
+      } catch (error) {
+        console.error("Failed to load bookings:", error);
+      }
+
+      let anySlotsShown = false;
+
+      // Generate hourly slots
+      hours.forEach(hour => {
+        const slotTime = new Date(year, month - 1, day, hour);
+
+        // ⛔ Skip slots earlier than 20 hours from page entry
+        if (slotTime.getTime() < minSlotTime.getTime()) {
+          return;
+        }
+
+        const hourLabel = formatAMPM(hour);
+        const div = document.createElement("div");
+        div.className = "slot";
+
+        const booked = roomBookings[hourLabel];
+        if (booked) {
+          div.classList.add("booked");
+          div.innerHTML = `
+            <strong>${hourLabel}</strong>
+            <div class="slot-details">
+              By: ${booked.presenter}<br>
+              ${booked.company}<br>
+              School: ${booked.school}<br>
+              ${booked.persons} persons<br>
+              ${booked.presenter === username ? `<button onclick="cancelSlot('${key}','${hourLabel}');event.stopPropagation();">Cancel</button>` : ""}
+            </div>
+          `;
+        } else {
+          div.textContent = hourLabel;
+          if (isEditMode) {
+            if (hourLabel === originalHourLabel) {
+              div.classList.add('selected');
+              selectedNewHourLabel = hourLabel;
+            }
+            div.addEventListener("click", () => selectSlotForEdit(div, hourLabel));
+          } else {
+            div.addEventListener("click", () => bookSlot(key, hourLabel));
+          }
+        }
+
+        slotsContainer.appendChild(div);
+        anySlotsShown = true;
+      });
+
+      if (!anySlotsShown) {
+        slotsContainer.innerHTML = `<p style="text-align:center; color:#888;">No available slots at least 20 hours from now for this date.</p>`;
+      }
+    }
+
+    function selectSlotForEdit(clickedSlot, hourLabel) {
+      // Remove 'selected' class from any previously selected slot
+      const currentSelected = document.querySelector('.slot.selected');
+      if (currentSelected) {
+        currentSelected.classList.remove('selected');
+      }
+      clickedSlot.classList.add('selected');
+      selectedNewHourLabel = hourLabel;
+    }
+
+    async function bookSlot(key, hourLabel) {
+      const company = document.getElementById("company").value;
+      const persons = document.getElementById("persons").value;
+      const school = document.getElementById("school").value;
+      const dateVal = dateInput.value;
+
+      if (!company || !persons || !username || !school || !dateVal) {
+        alert("Please fill all fields and select a date.");
+        return;
+      }
+
+      // --- Client-side capacity validation ---
+      const personsInput = document.getElementById("persons");
+      if (!personsInput.checkValidity()) {
+        const min = personsInput.min;
+        const max = personsInput.max;
+        alert(`The number of persons must be between ${min} and ${max} for this room.`);
+        return;
+      }
+
+      const details = { company, persons, presenter: username, school }; // Use the consistent lowercase username
+
+      try {
+        const response = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, roomName: room, hourLabel, details })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message);
+        }
+        alert('Booking successful! You will be redirected to your dashboard.');
+        window.location.href = 'dashboard.html';
+      } catch (error) {
+        alert(error.message || "Failed to book slot.");
+        loadSlotsForDate();
+      }
+    }
+
+    async function updateBooking() {
+        if (!confirm("Are you sure you want to update this booking?")) return;
+
+        if (isEditMode && !selectedNewHourLabel) {
+            alert("Please select a new time slot.");
+            return;
+        }
+
+        const newHourLabel = selectedNewHourLabel;
+        const newDate = dateInput.value;
+        const newKey = `${locName}_${room}_${newDate}`;
+
+        const company = document.getElementById("company").value;
+        const persons = document.getElementById("persons").value;
+        const school = document.getElementById("school").value;
+
+        if (!company || !persons || !school) {
+            alert("Please fill all fields.");
+            return;
+        }
+
+        const newDetails = { company, persons, presenter: username, school };
+
+        try {
+            const response = await fetch('/api/bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    oldKey: originalKey,
+                    oldHourLabel: originalHourLabel,
+                    newKey: newKey,
+                    newRoomName: room,
+                    newHourLabel: newHourLabel,
+                    newDetails: newDetails,
+                    username: username
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message);
+            alert('Booking updated successfully!');
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            alert(error.message || "Failed to update booking.");
+        }
+    }
+
+    async function cancelSlot(key, hourLabel) {
+      if (!confirm("Are you sure you want to cancel this booking?")) return;
+
+      try {
+        const response = await fetch('/api/bookings', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, hourLabel, username })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message);
+        }
+        loadSlotsForDate(); // Refresh the view
+      } catch (error) {
+        alert(error.message || "Failed to cancel booking.");
+      }
+    }
+  </script>
+</body>
+</html>

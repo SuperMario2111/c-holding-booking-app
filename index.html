@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>C-HOLDING</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="container">
+    <h1>Welcome to C-Holding</h1>
+    <div class="button-container">
+      <button onclick="location.href='signup.html'">Sign Up</button>
+      <button onclick="location.href='login.html'">Log In</button>
+    </div>
+  </div>
+
+  <script>
+    // Check if a user is already logged in
+    document.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('currentUser')) {
+        window.location.href = 'dashboard.html'; // or 'location.html'
+      }
+    });
+  </script>
+</body>
+</html>

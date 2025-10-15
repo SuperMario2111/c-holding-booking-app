@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign Up - Celebratory Events</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .signup-container {
+      background-color: #1e1e1e;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255, 165, 0, 0.2);
+      width: 350px;
+    }
+
+    h2 {
+      color: #FFA500;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #FFA500;
+      background-color: #121212;
+      color: #FFA500;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #FFA500;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .success {
+      color: lightgreen;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="signup-container">
+  <h2>Sign Up</h2>
+  <input type="text" id="username" placeholder="Choose a username" />
+  <input type="password" id="password" placeholder="Choose a password" />
+  <button onclick="signup()">Sign Up</button>
+  <p id="msg"></p>
+</div>
+
+<script>
+  async function signup() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    const msg = document.getElementById("msg");
+
+    if (!username || !password) {
+      msg.innerText = "Please fill in all fields.";
+      msg.className = "error";
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message);
+      }
+      msg.innerText = "Sign up successful. Redirecting to login...";
+      msg.className = "success";
+      setTimeout(() => window.location.href = "login.html", 2000);
+    } catch (error) {
+      msg.innerText = error.message || "An error occurred.";
+      msg.className = "error";
+    }
+  }
+</script>
+
+</body>
+</html>

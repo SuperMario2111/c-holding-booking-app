@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Celebratory Events</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      background-color: #121212;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .login-container {
+      background-color: #1e1e1e;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255, 165, 0, 0.2);
+      width: 350px;
+    }
+
+    h2 {
+      color: #FFA500;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #FFA500;
+      background-color: #121212;
+      color: #FFA500;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #FFA500;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <h2>Login</h2>
+  <input type="text" id="username" placeholder="Username" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+  <p class="error" id="errorMsg"></p>
+</div>
+
+<script>
+  async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    const errorMsg = document.getElementById("errorMsg");
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message);
+      }
+      localStorage.setItem("currentUser", result.username.toLowerCase());
+      window.location.href = "dashboard.html";
+    } catch (error) {
+      errorMsg.innerText = error.message || "An error occurred during login.";
+    }
+  }
+</script>
+
+</body>
+</html>
